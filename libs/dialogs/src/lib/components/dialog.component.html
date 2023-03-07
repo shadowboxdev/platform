@@ -4,13 +4,10 @@
   cdkDrag
   (cdkDragStarted)="onDragBegin()"
   (cdkDragEnded)="onDragEnd($event)"
-  [cdkDragFreeDragPosition]="position"
   [cdkDragBoundary]="_boundaryElement"
   [ngStyle]="{
     width: width,
-    zIndex: currentZ,
-    marginLeft: marginLeft,
-    marginTop: marginTop
+    zIndex: currentZ
   }"
   [ngClass]="!isMinimized ? '' : 'hidden'"
 >
@@ -85,9 +82,9 @@
     <ng-content></ng-content>
   </div>
 </div>
-<div
+<!-- <div
   class="minimized"
-  *ngIf="isMinimized"
+  *ngIf="false"
   [ngStyle]="{
     left: dialog.getDockX(currentInstance),
     zIndex: 999998
@@ -126,4 +123,4 @@
       </button>
     </div>
   </div>
-</div>
+</div> -->

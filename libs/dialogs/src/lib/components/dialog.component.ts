@@ -7,7 +7,7 @@ import {
   Input,
   OnInit,
 } from '@angular/core';
-import { DIALOG_ID, SDW_DIALOG_REF } from '../providers/dialog-id.provider';
+import { SDW_DIALOG_REF } from '../providers/dialog-id.provider';
 import { ResizeBase } from '../behaviors/resize.base';
 
 import { DialogService, PopupService } from '../services/dialog.service';
@@ -63,7 +63,6 @@ export class DialogComponent<TData = unknown>
   screenWidth = 0;
 
   public _boundaryElement: HTMLElement | string = inject(DOCUMENT).body;
-  public readonly child_unique_key: string = inject(DIALOG_ID);
   public readonly dialogRef: DialogRef<TData> =
     inject<DialogRef<TData>>(SDW_DIALOG_REF);
 
@@ -82,17 +81,23 @@ export class DialogComponent<TData = unknown>
     this.marginTop = coerceCssPixelValue(-(popupHeight / 2));
 
     if (this.allowOutOfBounds) this._boundaryElement = '';
+
+    // this.dialog.updateDialogPosition(this.dialogRef.unique_key, {
+    //   x: 0,
+    //   y: 0,
+    // });
   }
 
   minimize() {
-    this.isMinimized = !this.isMinimized;
+    this.dialog.dockComponent(this.currentInstance, this.dialogRef);
+    // this.isMinimized = !this.isMinimized;
 
-    if (!this.isMinimized) {
-      this.currentZ = this.popup.getNewIndex(this.currentInstance);
-      this.dialog.undockComponent(this.currentInstance);
-    } else {
-      this.dialog.dockComponent(this.currentInstance, this.dialogRef);
-    }
+    // if (!this.isMinimized) {
+    //   this.currentZ = this.popup.getNewIndex(this.currentInstance);
+    //   this.dialog.undockComponent(this.currentInstance);
+    // } else {
+    //   this.dialog.dockComponent(this.currentInstance, this.dialogRef);
+    // }
   }
 
   onDragBegin() {
@@ -101,13 +106,21 @@ export class DialogComponent<TData = unknown>
 
   onDragEnd({ source }: CdkDragEnd<unknown>) {
     this.position = source.getFreeDragPosition();
+
+    const { top, left } = source.element.nativeElement.getBoundingClientRect();
+
+    this.dialog.updateDialogPosition(this.dialogRef.unique_key, {
+      x: left,
+      y: top,
+    });
   }
 
   remove_me() {
     console.log(this.dialogRef.parentRef);
 
+    // this.dialog.close(this.currentInstance);
+
     this.popup.destroyModal(this.currentInstance);
-    this.dialog.undockComponent(this.currentInstance);
-    this.dialog.remove(this.dialogRef);
+    this.dialog.close(this.dialogRef.unique_key);
   }
 }

@@ -5,7 +5,7 @@ import {
   Input,
   OnInit,
 } from '@angular/core';
-import { DIALOG_ID } from '@shadowboxdev/dialogs';
+import { SDW_DIALOG_REF } from '@shadowboxdev/dialogs';
 
 @Component({
   selector: 'platform-dialog-one',
@@ -13,13 +13,16 @@ import { DIALOG_ID } from '@shadowboxdev/dialogs';
   styleUrls: ['./dialog-one.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DialogOneComponent implements OnInit {
-  @Input() data: any = {};
-  @Input() parentRef: any;
+export class DialogOneComponent<TData> implements OnInit {
+  readonly #dialogRef = inject(SDW_DIALOG_REF);
 
-  unique_key = inject(DIALOG_ID);
+  @Input()
+  data: TData | null = null;
 
-  color: any = '';
+  @Input()
+  parentRef: any;
+
+  color = '';
 
   ngOnInit(): void {
     console.log(this.data);
@@ -36,6 +39,6 @@ export class DialogOneComponent implements OnInit {
   }
 
   close() {
-    this.parentRef.remove(this.unique_key);
+    this.parentRef.remove(this.#dialogRef.unique_key);
   }
 }

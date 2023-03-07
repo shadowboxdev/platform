@@ -19,10 +19,6 @@ export class AppComponent {
     const data = { test: 'test' };
     this.dialog.createComponent(DialogOneComponent, data, {
       title: 'test title',
-      position: {
-        x: 10,
-        y: 10,
-      },
     });
   }
 

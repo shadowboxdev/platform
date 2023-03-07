@@ -39,9 +39,13 @@ export class DialogBarComponent implements OnDestroy {
     this.dockItems$.next(nextValue);
   }
 
-  restore(): void {
+  onClose(minimized: DockedDialogRef<unknown>) {
+    this.dialog.close(minimized.dialogRef.unique_key);
+  }
+
+  restore(minimized: DockedDialogRef<unknown>): void {
     // this.popup.getNewIndex(this.currentInstance);
-    this.dialog.undockComponent(this.currentInstance);
+    this.dialog.undockComponent(minimized.dialogRef.unique_key);
   }
 
   moveLeft() {

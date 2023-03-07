@@ -1,32 +1,98 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
-import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import {
+  GlobalPositionStrategy,
+  Overlay,
+  OverlayRef,
+  PositionStrategy,
+} from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
-import { Directive, inject, Type, Injector, ComponentRef } from '@angular/core';
+import {
+  Directive,
+  inject,
+  Type,
+  Injector,
+  ComponentRef,
+  ViewContainerRef,
+} from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { DialogBarComponent } from '../components/dialog-bar.component';
 import { DialogRef, DockedDialogRef, SdwDialogConfig } from '../models';
-import { v4 as uuid } from 'uuid';
-import { DIALOG_ID, SDW_DIALOG_REF } from '../providers/dialog-id.provider';
+import { v1, v4 as uuid } from 'uuid';
+import { SDW_DIALOG_REF } from '../providers/dialog-id.provider';
 
 import { coerceCssPixelValue } from '@angular/cdk/coercion';
+import {
+  always,
+  applySpec,
+  compose,
+  concat,
+  toString,
+  constructN,
+  F,
+  identity,
+  nthArg,
+  filter,
+  path,
+  pathOr,
+  propEq,
+  map,
+  append,
+  remove,
+  addIndex,
+  assoc,
+  flip,
+} from 'ramda';
+import { ensureArray, pathNotEq } from 'ramda-adjunct';
+import { PopupService } from '../services/dialog.service';
+import { Dialog } from '@angular/cdk/dialog';
+import { Point } from '@angular/cdk/drag-drop';
 
+type InjectorOptions = Parameters<typeof Injector.create>[0];
+
+const mapIndexed = addIndex(map);
+const createPortal = constructN(1, ComponentPortal);
+const createDialogProviders = compose(
+  ensureArray,
+  applySpec({
+    provide: always(SDW_DIALOG_REF),
+    useValue: identity,
+    multi: F,
+  })
+);
+
+const getInjectorName = concat('__sdw_dialog_injector_');
+const createInjectorOptions = applySpec<InjectorOptions>({
+  name: compose<[unknown], unknown, string, string, string>(
+    getInjectorName,
+    toString,
+    pathOr<string>('', ['unique_key']),
+    nthArg(0)
+  ),
+  providers: compose(createDialogProviders, nthArg(0)),
+  parent: nthArg(1),
+});
+
+const createInjector = compose(Injector.create, createInjectorOptions);
 @Directive({})
 export class DialogBase {
+  private readonly _cdkDialog = inject(Dialog);
   private readonly _injector = inject(Injector);
   private readonly _overlay = inject(Overlay);
+  readonly #popup = inject(PopupService);
 
-  componentsReferences = new Map<string, OverlayRef>();
+  cachedViewContainers = new Map<string, ViewContainerRef>();
+  componentsReferences = new Map<string, DialogRef<unknown>>();
   dockPosition: DockedDialogRef[] = [];
   minimizedDialogs$ = new BehaviorSubject<DockedDialogRef[]>([]);
   navigatorAdded = false;
   moveVal: number = 0;
   navigatorReferences: ComponentRef<unknown>[] = [];
 
-  readonly getDockX = (index: number): string => {
+  readonly getDockX = (key: string): string => {
     let dockedPos = 1;
     let leftPlacementValue = 0;
     for (let i = 0; i < this.dockPosition.length; i++) {
-      if (this.dockPosition[i].key == index) {
+      if (this.dockPosition[i].key == key) {
         dockedPos = i + 1;
       }
     }
@@ -55,13 +121,15 @@ export class DialogBase {
   ) {
     if (!this.navigatorAdded) this.createNavigator();
 
-    const child_unique_key = uuid();
+    let positionStrategy = this._overlay.position().global();
 
-    const positionStrategy = this._overlay
-      .position()
-      .global()
-      .centerHorizontally()
-      .centerVertically();
+    if (config.position) {
+      positionStrategy = this.updatePosition(positionStrategy, config.position);
+    } else {
+      positionStrategy = positionStrategy
+        .centerHorizontally()
+        .centerVertically();
+    }
 
     const overlayRef = this._overlay.create({
       direction: 'ltr',
@@ -70,68 +138,48 @@ export class DialogBase {
       positionStrategy,
     });
 
-    // const dialogRef = {
-    //   unique_key: child_unique_key,
-    //   parentRef: this,
-    //   data,
-    //   overlayRef,
-    //   config,
-    // };
+    const componentPortal = createPortal(componentRender);
 
-    // const injector = Injector.create(
-    //   [
-    //     {
-    //       provide: DIALOG_ID,
-    //       useValue: child_unique_key,
-    //       multi: false,
-    //     },
-    //     {
-    //       provide: SDW_DIALOG_REF,
-    //       useValue: dialogRef,
-    //       multi: false,
-    //     },
-    //   ],
-    //   this._injector
-    // );
-
-    // const componentPortal = new ComponentPortal(
-    //   componentRender,
-    //   undefined,
-    //   injector
-    // );
-
-    const componentPortal = new ComponentPortal(componentRender);
-
-    const dialogRef = {
-      unique_key: child_unique_key,
+    const dialogRef: DialogRef<D> = {
+      unique_key: uuid(),
       parentRef: this,
       data,
       overlayRef,
       config,
       componentPortal,
+      docked: false,
+      positionStrategy,
+      position: config.position,
     };
 
-    const injector = Injector.create(
-      [
-        {
-          provide: DIALOG_ID,
-          useValue: child_unique_key,
-          multi: false,
-        },
-        {
-          provide: SDW_DIALOG_REF,
-          useValue: dialogRef,
-          multi: false,
-        },
-      ],
-      this._injector
-    );
+    const injector = createInjector(dialogRef, this._injector);
 
-    componentPortal.injector = injector;
+    dialogRef.componentPortal.injector = injector;
 
     overlayRef.attach(componentPortal);
 
-    this.componentsReferences.set(child_unique_key, overlayRef);
+    this.componentsReferences.set(dialogRef.unique_key, dialogRef);
+  }
+
+  updatePosition(
+    strategy: GlobalPositionStrategy,
+    position: Point
+  ): GlobalPositionStrategy {
+    if (!position) return strategy;
+
+    if (position && position.x) {
+      strategy = strategy.left(coerceCssPixelValue(position.x));
+    } else {
+      strategy = strategy.centerHorizontally();
+    }
+
+    if (position && position.y) {
+      strategy = strategy.top(coerceCssPixelValue(position.y));
+    } else {
+      strategy = strategy.centerVertically();
+    }
+
+    return strategy;
   }
 
   createNavigator() {
@@ -156,32 +204,53 @@ export class DialogBase {
     this.navigatorReferences.push(componentRef);
   }
 
-  dockComponent<TData>(index: number, dialogRef: DialogRef<TData>) {
-    const len = this.dockPosition.length + 1;
-    const docEle = { key: index, position: len, dialogRef };
-    this.dockPosition.push(docEle);
-    this.minimizedDialogs$.value.push(docEle);
-    this.minimizedDialogs$.next(this.minimizedDialogs$.value);
+  updateDialogPosition(id: string, position: Point): void {
+    const dialogRef = this.componentsReferences.get(id);
 
-    let leftPlacementValue = 0;
+    if (!dialogRef) return;
 
-    if (this.dockPosition.length != 1) {
-      leftPlacementValue =
-        (this.dockPosition.length - 1) * 200 +
-        (this.dockPosition.length - 1) * 2 +
-        32;
-    } else {
-      leftPlacementValue = 32;
-    }
-    return leftPlacementValue;
+    console.log(position);
+
+    // const strategy = this.updatePosition(dialogRef.positionStrategy, position);
+
+    // dialogRef.overlayRef.updatePositionStrategy(strategy);
+    // dialogRef.overlayRef.updatePosition();
+
+    this.componentsReferences.set(id, { ...dialogRef, position });
   }
 
-  undockComponent(key: any) {
+  dockComponent<TData>(dockedPosition: number, dialogRef: DialogRef<TData>) {
+    const len = this.dockPosition.length + 1;
+    dialogRef = {
+      ...dialogRef,
+      docked: true,
+    };
+    const docEle = { key: dialogRef.unique_key, position: len, dialogRef };
+    this.dockPosition = append(docEle, this.dockPosition);
+    this.minimizedDialogs$.next(this.dockPosition);
+    this.componentsReferences.set(dialogRef.unique_key, dialogRef);
+
+    if (dialogRef.componentPortal.viewContainerRef) {
+      this.cachedViewContainers.set(
+        dialogRef.unique_key,
+        dialogRef.componentPortal.viewContainerRef
+      );
+    }
+
+    dialogRef.overlayRef.detach();
+  }
+
+  undockComponent(unique_key: string) {
     const newData: DockedDialogRef[] = [];
+
     let startChange = 0;
 
+    const dialogRef = this.componentsReferences.get(unique_key);
+
+    if (!dialogRef || !dialogRef.docked) return;
+
     for (let i = 0; i < this.dockPosition.length; i++) {
-      if (this.dockPosition[i].key == key) {
+      if (this.dockPosition[i].key == unique_key) {
         startChange = 0;
       } else {
         if (startChange == 1) {
@@ -192,10 +261,32 @@ export class DialogBase {
         }
       }
     }
+
     this.dockPosition = newData;
+    this.minimizedDialogs$.next(newData);
+
+    const { overlayRef } = dialogRef;
+
+    overlayRef.attach(dialogRef.componentPortal);
+
+    if (!dialogRef.position) return;
+
+    console.log(dialogRef.position);
+    this.updatePosition(dialogRef.positionStrategy, dialogRef.position);
+    this.componentsReferences.set(unique_key, {
+      ...dialogRef,
+      docked: false,
+    });
   }
 
-  moveDockerComponent(direction: any) {
+  close(unique_key: string): void {
+    this.undockComponent(unique_key);
+    const dialogRef = this.componentsReferences.get(unique_key);
+
+    if (dialogRef) this.#remove(dialogRef);
+  }
+
+  moveDockerComponent(direction: 1 | -1) {
     if (direction == 1) {
       if (this.moveVal != 0) this.moveVal = this.moveVal + 100;
     } else {
@@ -203,7 +294,7 @@ export class DialogBase {
     }
   }
 
-  remove<TData = unknown>({ unique_key, overlayRef }: DialogRef<TData>) {
+  #remove<TData = unknown>({ unique_key, overlayRef }: DialogRef<TData>) {
     if (!unique_key || !overlayRef) return;
 
     this.componentsReferences.delete(unique_key);
