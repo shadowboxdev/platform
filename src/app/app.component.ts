@@ -1,4 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, ViewContainerRef } from '@angular/core';
+import { DialogService } from '@shadowboxdev/dialogs';
+import { DialogOneComponent } from './dialogs/dialog-one.component';
 
 @Component({
   selector: 'platform-root',
@@ -7,4 +9,24 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
   title = 'platform';
+
+  constructor(
+    public viewContainerRef: ViewContainerRef,
+    public dialog: DialogService
+  ) {}
+
+  createComponent() {
+    const data = { test: 'test' };
+    this.dialog.createComponent(DialogOneComponent, data, {
+      title: 'test title',
+      position: {
+        x: 10,
+        y: 10,
+      },
+    });
+  }
+
+  moveRoute() {
+    // this.router.navigate(['r']);
+  }
 }
