@@ -1,3 +1,4 @@
+import { coerceElement } from '@angular/cdk/coercion';
 import { CdkDragMove } from '@angular/cdk/drag-drop';
 import {
   ElementRef,
@@ -6,20 +7,47 @@ import {
   ViewChild,
   Directive,
   inject,
+  Optional,
+  ContentChild,
+  Input,
+  Output,
+  EventEmitter,
+  AfterContentInit,
 } from '@angular/core';
 
-@Directive({})
-export class ResizeBase implements AfterViewInit {
+@Directive({
+  selector: '[sdwResizableDialog]',
+  exportAs: 'sdwResizableDialog',
+})
+export class ResizeBase implements AfterContentInit {
   private readonly ngZone: NgZone = inject(NgZone);
 
-  @ViewChild('resizeBox') resizeBox!: ElementRef;
-  @ViewChild('dragHandleCorner') dragHandleCorner!: ElementRef;
-  @ViewChild('dragHandleRight') dragHandleRight!: ElementRef;
-  @ViewChild('dragHandleBottom') dragHandleBottom!: ElementRef;
+  @Input()
+  hostElement: ElementRef | HTMLElement | null = null;
 
-  get resizeBoxElement(): HTMLElement {
-    return this.resizeBox.nativeElement;
-  }
+  @Output()
+  resizeStart = new EventEmitter<void>();
+
+  @Output()
+  resizeEnd = new EventEmitter<void>();
+
+  @ContentChild('resizeBox')
+  @ViewChild('resizeBox')
+  resizeBox!: ElementRef;
+
+  @ContentChild('dragHandleCorner')
+  @ViewChild('dragHandleCorner')
+  dragHandleCorner!: ElementRef;
+
+  @ContentChild('dragHandleRight')
+  @ViewChild('dragHandleRight')
+  dragHandleRight!: ElementRef;
+
+  @ContentChild('dragHandleBottom')
+  @ViewChild('dragHandleBottom')
+  dragHandleBottom!: ElementRef;
+
+  resizeBoxElement!: HTMLElement;
 
   get dragHandleCornerElement(): HTMLElement {
     return this.dragHandleCorner.nativeElement;
@@ -33,12 +61,18 @@ export class ResizeBase implements AfterViewInit {
     return this.dragHandleBottom.nativeElement;
   }
 
-  ngAfterViewInit() {
+  constructor(@Optional() private readonly _elementRef?: ElementRef | null) {}
+
+  ngAfterContentInit() {
+    console.log(this.resizeBox);
+    this.resizeBoxElement = coerceElement(this.resizeBox);
     this.setAllHandleTransform();
   }
 
   setAllHandleTransform() {
     const rect = this.resizeBoxElement.getBoundingClientRect();
+    console.log(rect);
+
     this.setHandleTransform(this.dragHandleCornerElement, rect, 'both');
     this.setHandleTransform(this.dragHandleRightElement, rect, 'x');
     this.setHandleTransform(this.dragHandleBottomElement, rect, 'y');
@@ -69,7 +103,12 @@ export class ResizeBase implements AfterViewInit {
   dragMove(dragHandle: HTMLElement, $event: CdkDragMove<any>) {
     this.ngZone.runOutsideAngular(() => {
       this.resize(dragHandle, this.resizeBoxElement);
+      this.setAllHandleTransform();
     });
+  }
+
+  dragEnd() {
+    this.resizeEnd.emit();
   }
 
   resize(dragHandle: HTMLElement, target: HTMLElement) {
@@ -81,7 +120,5 @@ export class ResizeBase implements AfterViewInit {
 
     target.style.width = width + 'px';
     target.style.height = height + 'px';
-
-    this.setAllHandleTransform();
   }
 }

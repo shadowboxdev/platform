@@ -1,5 +1,5 @@
-import { Component, ViewContainerRef } from '@angular/core';
-import { DialogService } from '@shadowboxdev/dialogs';
+import { Component, inject, ViewContainerRef } from '@angular/core';
+import { DialogService, SdwDialog } from '@shadowboxdev/dialogs';
 import { DialogOneComponent } from './dialogs/dialog-one.component';
 
 @Component({
@@ -9,6 +9,7 @@ import { DialogOneComponent } from './dialogs/dialog-one.component';
 })
 export class AppComponent {
   title = 'platform';
+  readonly #dialog = inject(SdwDialog);
 
   constructor(
     public viewContainerRef: ViewContainerRef,
@@ -17,9 +18,12 @@ export class AppComponent {
 
   createComponent() {
     const data = { test: 'test' };
-    this.dialog.createComponent(DialogOneComponent, data, {
-      title: 'test title',
+    this.#dialog.open(DialogOneComponent, {
+      data,
     });
+    // this.dialog.createComponent(DialogOneComponent, data, {
+    //   title: 'test title',
+    // });
   }
 
   moveRoute() {

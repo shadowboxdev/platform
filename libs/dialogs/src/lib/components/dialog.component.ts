@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  InjectFlags,
   Input,
   OnInit,
 } from '@angular/core';
@@ -63,8 +64,10 @@ export class DialogComponent<TData = unknown>
   screenWidth = 0;
 
   public _boundaryElement: HTMLElement | string = inject(DOCUMENT).body;
-  public readonly dialogRef: DialogRef<TData> =
-    inject<DialogRef<TData>>(SDW_DIALOG_REF);
+  public readonly dialogRef: DialogRef<TData> = inject<DialogRef<TData>>(
+    SDW_DIALOG_REF,
+    InjectFlags.Optional
+  ) as any;
 
   constructor(public popup: PopupService, public dialog: DialogService) {
     super();

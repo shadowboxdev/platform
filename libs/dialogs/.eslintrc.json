@@ -1,9 +1,15 @@
 {
-  "extends": ["../../.eslintrc.base.json"],
-  "ignorePatterns": ["!**/*"],
+  "extends": [
+    "../../.eslintrc.base.json"
+  ],
+  "ignorePatterns": [
+    "!**/*"
+  ],
   "overrides": [
     {
-      "files": ["*.ts"],
+      "files": [
+        "*.ts"
+      ],
       "rules": {
         "@angular-eslint/directive-selector": [
           "error",
@@ -20,7 +26,27 @@
             "prefix": "sdw",
             "style": "kebab-case"
           }
-        ]
+        ],
+        "@angular-eslint/component-class-suffix": [
+          "error",
+          {
+            "suffixes": [
+              "Component",
+              "Container",
+              "Base"
+            ]
+          }
+        ],
+        "@angular-eslint/directive-class-suffix": [
+          "error",
+          {
+            "suffixes": [
+              "Directive",
+              "Base"
+            ]
+          }
+        ],
+        "@typescript-eslint/no-non-null-assertion": "off"
       },
       "extends": [
         "plugin:@nrwl/nx/angular",
@@ -28,8 +54,12 @@
       ]
     },
     {
-      "files": ["*.html"],
-      "extends": ["plugin:@nrwl/nx/angular-template"],
+      "files": [
+        "*.html"
+      ],
+      "extends": [
+        "plugin:@nrwl/nx/angular-template"
+      ],
       "rules": {}
     }
   ]

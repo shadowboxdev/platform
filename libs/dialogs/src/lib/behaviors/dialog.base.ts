@@ -209,13 +209,6 @@ export class DialogBase {
 
     if (!dialogRef) return;
 
-    console.log(position);
-
-    // const strategy = this.updatePosition(dialogRef.positionStrategy, position);
-
-    // dialogRef.overlayRef.updatePositionStrategy(strategy);
-    // dialogRef.overlayRef.updatePosition();
-
     this.componentsReferences.set(id, { ...dialogRef, position });
   }
 

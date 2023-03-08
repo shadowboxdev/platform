@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  InjectFlags,
   Input,
   OnInit,
 } from '@angular/core';
-import { SDW_DIALOG_REF } from '@shadowboxdev/dialogs';
+import { MatDialogRef } from '@angular/material/dialog';
+import { SdwDialogRef, SDW_DIALOG_REF } from '@shadowboxdev/dialogs';
 
 @Component({
   selector: 'platform-dialog-one',
@@ -14,7 +16,7 @@ import { SDW_DIALOG_REF } from '@shadowboxdev/dialogs';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DialogOneComponent<TData> implements OnInit {
-  readonly #dialogRef = inject(SDW_DIALOG_REF);
+  // readonly #dialogRef = inject(SDW_DIALOG_REF, InjectFlags.Optional);
 
   @Input()
   data: TData | null = null;
@@ -39,6 +41,6 @@ export class DialogOneComponent<TData> implements OnInit {
   }
 
   close() {
-    this.parentRef.remove(this.#dialogRef.unique_key);
+    // this.parentRef.remove(this.#dialogRef?.unique_key);
   }
 }
